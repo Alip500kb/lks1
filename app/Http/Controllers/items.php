@@ -1,0 +1,120 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\items as ModelsItems;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class items extends Controller
+{
+    public function all_item(Request $request) {
+        //mengubah enum yang berbentuk string,semisal kapital menjadi lowercasse
+        if ($request->has('status')) {
+            $request->merge(['status' => strtolower($request->query('status'))]);
+        }
+        if ($request->has('order')) {
+            $request->merge(['order' => strtolower($request->query('order'))]);
+        }
+        $validate = Validator::make($request->all(),[
+            'search' => 'nullable|string',
+            'category' => 'nullable|string',
+            'status' => 'nullable|string',
+            'page' => 'nullable|integer',
+            'per_page' => 'nullable|integer|max:50',
+            'sort' => 'nullable|string',
+            'order' => 'nullable|string',
+        ]);
+
+        $validated = $validate->validate(); //berfungsi jika ada yang error otomatis kirim response 422
+        $search = $validated['search'] ?? '';
+        $status = $validated['status'] ?? '';
+        $category = $validated['category'] ?? '';
+        $page = $validated['page'] ?? 1;
+        $per_page = $validated['per_page'] ?? 10;
+        $sort = $validated['sort'] ?? 'created_at';
+        $order = $validated['order'] ?? 'desc';
+
+        $data = ModelsItems::query()
+            ->when(filled($search), function ($query) use ($search) {
+                $query->where('title', 'LIKE', "%{$search}%");
+            })
+            ->when(filled($status), function ($query) use ($status) {
+                $query->where('status', $status);
+            })
+            ->when(filled($category) && ModelsItems::where('slug', $category)->exists(), function ($query) use ($category) {
+                $query->where('category', $category);
+            })
+            ->orderBy($sort, $order)
+            ->paginate($per_page);
+
+        return response()->json($data);
+    }
+
+    public function by_item(Request $request,$id) {
+        $data = ModelsItems::where('id', $id)->first();
+
+        if (!$data) {
+            return response()->json([
+                'message' => 'nothing in here to scrap, BOT!!'
+            ],404);
+        }
+        // dd($data);
+        return response()->json([
+            'data' => $data
+        ],200);
+    }
+
+    public function up_item(Request $request) {
+
+        $valid = Validator::make($request->all(), [
+            'category_id' => 'required|integer|exists:categories.id',
+            'title' => 'required|string|min:3|max:255',
+            'description' => 'required|string|min:20',
+            'address' => 'string|max:255|nullable',
+            'city' => 'string|max:100|nullable',
+            'phone' => 'string|max:30|nullable',
+            'image' => 'string|max:2048|nullable',
+            'status' => 'in:draft, published|nullable'
+        ]);
+
+        if ($valid->fails()) {
+            return response($valid->errors(),422);
+        }
+        $validated = $valid->validate();
+        $cleaned = array_filter($validated, fn ($value) => filled($value));
+
+        $make = ModelsItems::make($cleaned);
+
+        return response()->json($make,201);
+    }
+
+    public function upt_item(Request $request,$id) {
+        $valid = Validator::make($request->all(), [
+            'status' => 'required|in:draft, published'
+        ]);
+
+        if ($valid->fails()) {
+            return response()->json($valid->errors());
+        }
+
+        $item = ModelsItems::where('id', $id)->get();
+        $item->update([
+            'status' => 'draft'
+        ]);
+        return response()->json($item);
+    }
+
+    public function del_item(Request $request,$id) {
+        $item = ModelsItems::find('id', $id);
+        if (!$item) {
+            return response()->json([
+                'message' => 'item tidak ditemukan'
+            ],404);
+        }
+        $item->delete();
+        return response()->json([
+            'message' => 'Data berhasil dihapus'
+        ],200);
+    }
+}
