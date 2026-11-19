@@ -4,13 +4,25 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Notifications\Notifiable;
 
 class items extends Model
 {
-    use HasUuids;
+    use Notifiable;
 
     protected $fillable = [
-        'name'
+        'id',
+        'name',
+        'user_id',
+        'category_id',
+        'title',
+        'slug',
+        'description',
+        'address',
+        'city',
+        'phone',
+        'image',
+        'status',
     ];
     public $timestamps = false;
 }

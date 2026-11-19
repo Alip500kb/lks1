@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\items as ModelsItems;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class items extends Controller
 {
@@ -66,38 +68,72 @@ class items extends Controller
     }
 
     public function up_item(Request $request) {
-
         $valid = Validator::make($request->all(), [
-            'category_id' => 'required|integer|exists:categories.id',
+            'category_id' => 'required|integer|exists:categories,id',
             'title' => 'required|string|min:3|max:255',
             'description' => 'required|string|min:20',
             'address' => 'string|max:255|nullable',
             'city' => 'string|max:100|nullable',
             'phone' => 'string|max:30|nullable',
             'image' => 'string|max:2048|nullable',
-            'status' => 'in:draft, published|nullable'
+            'status' => 'in:draft,published|nullable'
         ]);
 
         if ($valid->fails()) {
             return response($valid->errors(),422);
         }
+
         $validated = $valid->validate();
-        $cleaned = array_filter($validated, fn ($value) => filled($value));
+        $cleaned = array_filter($validated, fn ($value) => $value != null);
+        $cleaned['user_id'] = $request->user()->id;
+        $cleaned['slug'] = Str::slug(strtolower($request->title));
+        if (ModelsItems::where('slug', $cleaned['slug'])->exists()) {
+            return response()->json('data duplikat',422);
+        }
+        $make = ModelsItems::create($cleaned);
+        $make['owner'] = [
+            'id' => $request->user()->id,
+            'name' => $request->user()->name
+        ];
+        return response()->json([
+            'data' => $make
+        ],201);
+    }
 
-        $make = ModelsItems::make($cleaned);
+    public function put_item(Request $request,$id) {
+        $item = ModelsItems::where('id', $id);
+        if (!$item->exists()) {
+            return response()->json([
+                'message' => 'data tidak ditemukan'
+            ],404);
+        }
 
-        return response()->json($make,201);
+        $item->update([
+            'category_id' => $request->input('category_id'),
+            'title' => $request->input('title'),
+            'description' => $request->input('description'),
+            'address' => $request->input('address'),
+            'city' => $request->input('city'),
+            'status' => $request->input('status'),
+            'slug' => $request->filled('title') ? Str::slug(strtolower($request->title)) : $item->slug,
+            'phone' => $request->input('phone'),
+            'image' => $request->input('image'),
+            'updated_at' => Carbon::now()
+        ]);
+
+        return response()->json([
+            'data' => $item->get()
+        ]);
     }
 
     public function upt_item(Request $request,$id) {
         $valid = Validator::make($request->all(), [
-            'status' => 'required|in:draft, published'
+            'status' => 'required|in:draft,published'
         ]);
 
         if ($valid->fails()) {
             return response()->json($valid->errors());
         }
-
         $item = ModelsItems::where('id', $id)->get();
         $item->update([
             'status' => 'draft'

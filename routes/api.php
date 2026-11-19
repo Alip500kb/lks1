@@ -21,6 +21,6 @@ Route::post('/categories', [categories::class, 'add_category'])->middleware('aut
 Route::get('/items', [items::class, 'all_item'])->middleware('guest');
 Route::get('/items/{id}', [items::class, 'by_item']);
 Route::post('/items', [items::class, 'up_item'])->middleware('auth:sanctum');
-Route::put('/items/{id}', [items::class, 'upt_item'])->middleware('auth:sanctum');
+Route::put('/items/{id}', [items::class, 'put_item'])->middleware('auth:sanctum');
 Route::patch('/items/{id}', [items::class, 'upt_item'])->middleware('auth:sanctum');
 Route::delete('/items/{id}', [items::class, 'del_item'])->middleware('auth:sanctum');

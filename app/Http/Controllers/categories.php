@@ -23,7 +23,17 @@ class categories extends Controller
         if ($valid->fails()) {
             return response()->json($valid->errors(),422);
         }
+
+        $maked_category = ModelsCategories::create([
+            'name' => $request->name,
+            'slug' => strtolower($request->name),
+            'description' => $request->description
+        ]);
+
+        return response()->json([
+            'data' => $maked_category
+        ],201);
     }
 
-    
+
 }
