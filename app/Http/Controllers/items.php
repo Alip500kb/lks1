@@ -126,23 +126,27 @@ class items extends Controller
         ]);
     }
 
-    public function upt_item(Request $request,$id) {
-        $valid = Validator::make($request->all(), [
-            'status' => 'required|in:draft,published'
-        ]);
+    public function patch_item(Request $request,$id) {
+        $item = ModelsItems::find($id);
 
-        if ($valid->fails()) {
-            return response()->json($valid->errors());
+        if (!$item->exists()) {
+            return response()->json([
+                'message' => 'data tidak ditemukan'
+            ],404);
         }
-        $item = ModelsItems::where('id', $id)->get();
-        $item->update([
-            'status' => 'draft'
+        // dd($item->get('slug'));
+        $itemonly = $request->only(['category_id', 'title', 'name', 'description', 'address', 'city', 'status', 'phone', 'image']);
+        $itemonly['updated_at'] = Carbon::now();
+        $slug = $request->filled('title') ? Str::slug(strtolower($request->title)) : $item->slug;
+        $itemonly['slug'] = $slug;
+        $item->update($itemonly);
+        return response()->json([
+            'data' => $item->get()
         ]);
-        return response()->json($item);
     }
 
     public function del_item(Request $request,$id) {
-        $item = ModelsItems::find('id', $id);
+        $item = ModelsItems::find($id);
         if (!$item) {
             return response()->json([
                 'message' => 'item tidak ditemukan'
